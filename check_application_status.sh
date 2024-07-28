@@ -3,7 +3,7 @@
 # Configuration
 URL="http://172.31.21.217:4499"  # Replace with your application's URL
 EXPECTED_STATUS_CODE=200  # Expected HTTP status code for 'up' status
-LOG_FILE="application_status.log"  # Log file to record the results
+LOG_FILE="/var/opt/application_status.log"  # Log file to record the results
 
 # Function to check application status
 check_status() {
