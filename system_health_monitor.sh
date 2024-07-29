@@ -1,63 +1,63 @@
 #!/bin/bash
 
-# Define thresholds
-CPU_THRESHOLD=80
-MEMORY_THRESHOLD=80
-DISK_THRESHOLD=80
-LOG_FILE="/var/log/system_health.log"
+# Log file location
+LOG_FILE="/var/opt/system_health.log"
 
-# Function to get current CPU usage
-get_cpu_usage() {
-  top -bn1 | grep "Cpu(s)" | \
-  sed "s/., *\([0-9.]\)%* id.*/\1/" | \
-  awk '{print 100 - $1}'
+# Thresholds
+CPU_USAGE_THRESHOLD=80
+MEMORY_USAGE_THRESHOLD=80
+DISK_USAGE_THRESHOLD=80
+PROCESS_COUNT_THRESHOLD=200
+
+# Function to check CPU usage
+check_cpu_usage() {
+    local cpu_usage
+    cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/., *\([0-9.]\)%* id.*/\1/" | awk '{print 100 - $1}')
+    if (( $(echo "$cpu_usage > $CPU_USAGE_THRESHOLD" | bc -l) )); then
+        alert_message="High CPU usage detected: ${cpu_usage}%"
+        echo "$alert_message"
+        echo "$(date) - WARNING - $alert_message" >> "$LOG_FILE"
+    fi
 }
 
-# Function to get current memory usage
-get_memory_usage() {
-  free | grep Mem | awk '{print $3/$2 * 100.0}'
+# Function to check memory usage
+check_memory_usage() {
+    local memory_usage
+    memory_usage=$(free | grep Mem | awk '{print $3/$2 * 100.0}')
+    if (( $(echo "$memory_usage > $MEMORY_USAGE_THRESHOLD" | bc -l) )); then
+        alert_message="High memory usage detected: ${memory_usage}%"
+        echo "$alert_message"
+        echo "$(date) - WARNING - $alert_message" >> "$LOG_FILE"
+    fi
 }
 
-# Function to get current disk usage
-get_disk_usage() {
-  df / | grep / | awk '{ print $5 }' | sed 's/%//g'
+# Function to check disk usage
+check_disk_usage() {
+    local disk_usage
+    disk_usage=$(df / | grep / | awk '{print $5}' | sed 's/%//g')
+    if (( disk_usage > DISK_USAGE_THRESHOLD )); then
+        alert_message="High disk usage detected: ${disk_usage}%"
+        echo "$alert_message"
+        echo "$(date) - WARNING - $alert_message" >> "$LOG_FILE"
+    fi
 }
 
-# Function to get number of running processes
-get_running_processes() {
-  ps aux | wc -l
+# Function to check process count
+check_process_count() {
+    local process_count
+    process_count=$(ps aux | wc -l)
+    if (( process_count > PROCESS_COUNT_THRESHOLD )); then
+        alert_message="High number of processes detected: ${process_count}"
+        echo "$alert_message"
+        echo "$(date) - WARNING - $alert_message" >> "$LOG_FILE"
+    fi
 }
 
-# Function to log and alert
-log_alert() {
-  MESSAGE=$1
-  echo "$MESSAGE" | tee -a $LOG_FILE
-}
-
-# Monitor system health
-monitor_health() {
-  CPU_USAGE=$(get_cpu_usage)
-  MEMORY_USAGE=$(get_memory_usage)
-  DISK_USAGE=$(get_disk_usage)
-  RUNNING_PROCESSES=$(get_running_processes)
-
-  if (( $(echo "$CPU_USAGE > $CPU_THRESHOLD" | bc -l) )); then
-    log_alert "ALERT: CPU usage is above threshold: $CPU_USAGE%"
-  fi
-
-  if (( $(echo "$MEMORY_USAGE > $MEMORY_THRESHOLD" | bc -l) )); then
-    log_alert "ALERT: Memory usage is above threshold: $MEMORY_USAGE%"
-  fi
-
-  if (( $(echo "$DISK_USAGE > $DISK_THRESHOLD" | bc -l) )); then
-    log_alert "ALERT: Disk usage is above threshold: $DISK_USAGE%"
-  fi
-
-  # You can define a threshold for running processes if needed
-  # if (( RUNNING_PROCESSES > PROCESS_THRESHOLD )); then
-  #   log_alert "ALERT: Number of running processes is above threshold: $RUNNING_PROCESSES"
-  # fi
-}
-
-# Run the monitor function
-monitor_health
+# Main monitoring loop
+while true; do
+    check_cpu_usage
+    check_memory_usage
+    check_disk_usage
+    check_process_count
+    sleep 60  # Check every minute
+done
